@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escape Room: Office Edition</title>
+<style>
+:root{--navy:#132b45;--blue:#1d5277;--gold:#ffc857;--paper:#fffdf6;--ink:#203247;--muted:#64748b;--green:#237a57;--red:#b33b3b}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:linear-gradient(135deg,#e9f1f6,#f8f0df);min-height:100vh}
+header{background:var(--navy);color:white;padding:26px 18px;text-align:center;border-bottom:6px solid var(--gold)}
+header h1{margin:0;font-size:clamp(1.8rem,4vw,3rem);letter-spacing:1px}
+header p{margin:9px 0 0;color:#e1eaf2}
+.wrap{max-width:1000px;margin:24px auto;padding:0 16px 36px}
+.status{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;background:white;border:1px solid #d5e0e8;border-radius:14px;padding:14px 16px;box-shadow:0 5px 18px #132b4510}
+.pill{background:#edf4f8;border-radius:99px;padding:8px 12px;font-weight:700;font-size:.9rem}
+.progress{height:9px;background:#dfe8ee;border-radius:20px;overflow:hidden;margin-top:14px}
+#bar{height:100%;width:0;background:var(--gold);transition:width .25s}
+.layout{display:grid;grid-template-columns:245px 1fr;gap:18px;margin-top:18px}
+nav,.room{background:var(--paper);border:1px solid #d9d8ce;border-radius:16px;box-shadow:0 8px 25px #132b450c}
+nav{padding:14px;height:max-content}
+nav h2{font-size:1rem;margin:4px 8px 12px}
+.roomlink{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:transparent;border-radius:10px;padding:11px 10px;margin:3px 0;color:var(--ink);cursor:pointer;font-weight:700}
+.roomlink .num{display:grid;place-items:center;min-width:30px;height:30px;border-radius:9px;background:#e6edf2}
+.roomlink.active{background:#dcebf4;color:#123d5b}
+.roomlink.done .num{background:#d5f0e3;color:#176143}
+.roomlink:disabled{opacity:.55;cursor:not-allowed}
+.room{padding:clamp(18px,4vw,34px);min-height:430px}
+.kicker{color:var(--blue);font-weight:800;text-transform:uppercase;letter-spacing:1.3px;font-size:.78rem}
+h2{margin:8px 0 12px}
+.question{font-size:1.12rem;line-height:1.65}
+.clue{background:#fff1c9;border-left:5px solid var(--gold);padding:13px 15px;border-radius:8px;margin:18px 0;line-height:1.5}
+input[type=text]{width:100%;padding:13px 14px;border:2px solid #cbd7df;border-radius:10px;font-size:1rem;margin:8px 0 12px;outline:none}
+input:focus{border-color:var(--blue)}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{font-size:.96rem;font-weight:700;border:0;border-radius:10px;padding:12px 16px;cursor:pointer}
+.primary{background:var(--blue);color:white}
+.secondary{background:#e8edf0;color:var(--ink)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+#feedback{min-height:28px;margin-top:14px;font-weight:700;line-height:1.5}
+.good{color:var(--green)}.bad{color:var(--red)}
+.hint{display:none;background:#e9f5ef;border-radius:10px;padding:12px;margin-top:12px;line-height:1.5}
+.finish{text-align:center;padding:28px 8px}
+.finish .big{font-size:4rem}
+footer{text-align:center;color:var(--muted);font-size:.85rem;margin-top:18px}
+@media(max-width:700px){.layout{grid-template-columns:1fr}nav{order:2}.room{order:1}.roomlink{display:inline-flex;width:auto;margin:3px}.roomlink span:last-child{display:none}nav h2{margin-bottom:8px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🔐 Escape Room: Office Edition</h1>
+  <p>Think together. Solve the clues. Unlock the office.</p>
+</header>
+<div class="wrap">
+  <div class="status">
+    <span class="pill" id="roomCount">Room 1 of 8</span>
+    <span class="pill">🧠 Teamwork • Logic • Observation</span>
+    <span class="pill" id="score">Solved: 0 / 8</span>
+  </div>
+  <div class="progress"><div id="bar"></div></div>
+  <div class="layout">
+    <nav>
+      <h2>OFFICE FLOOR PLAN</h2>
+      <div id="roomList"></div>
+      <button class="secondary" style="width:100%;margin-top:10px" onclick="resetGame()">↻ Restart game</button>
+    </nav>
+    <main class="room" id="game"></main>
+  </div>
+  <footer>Facilitator tip: Let teams discuss each clue before submitting an answer.</footer>
+</div>
+<script>
+const rooms = [
+ {name:"The Reception Desk", title:"The Keyboard Riddle", type:"RIDDLE",
+  question:"I have keys but no locks. I have a space but no room. You can enter, but you cannot go outside. What am I?",
+  clue:"Think about an everyday office tool used to type messages.",
+  answer:["keyboard"], hint:"You use it with a computer to type letters and numbers.",
+  success:"Nice work! You found the first key. Move to the next room."},
+ {name:"The Copy Room", title:"The Scrambled File", type:"WORD PUZZLE",
+  question:"The office label has been scrambled: <strong>CEFIF O</strong>. Rearrange the letters to reveal the place where you work.",
+  clue:"There are 6 letters. The answer begins with O.",
+  answer:["office"], hint:"The letters spell O-F-F-I-C-E. Ignore the space in the scrambled clue.",
+  success:"The file is in the right place. The copy room is unlocked!"},
+ {name:"The Shared Kitchen", title:"Lunch Box Logic", type:"LOGIC",
+  question:"Four coworkers—Amy, Ben, Cole, and Dan—put lunch boxes in fridge positions 1–4, from left to right. Dan is in position 4. Amy is directly to the left of Ben. Cole is in position 3. Who owns the lunch box in position 1?",
+  clue:"Place Cole in position 3 and Dan in position 4 first. Amy must be immediately before Ben.",
+  answer:["amy"], hint:"Positions 3 and 4 are Cole and Dan. That leaves positions 1 and 2 for Amy and Ben—in that order.",
+  success:"Excellent deduction! You have earned the kitchen access code."},
+ {name:"The Finance Office", title:"The Number Sequence", type:"NUMBER LOGIC",
+  question:"Find the missing number: <strong>2, 6, 12, 20, 30, ?</strong>",
+  clue:"Look at the differences between each pair of numbers.",
+  answer:["42"], hint:"The differences are +4, +6, +8, +10. The next difference is +12.",
+  success:"The pattern checks out. Finance approves your next move."},
+ {name:"The HR Office", title:"The Security Rule", type:"WORKPLACE SCENARIO",
+  question:"A coworker messages you asking for your password because they need to finish a report quickly. What is the safest response? Enter the key word for the correct action: protect sensitive information and follow company rules.",
+  clue:"One word: the practice of keeping private information safe.",
+  answer:["security","confidentiality"], hint:"Think of the word used for protecting accounts, systems, and sensitive information.",
+  success:"Correct. You chose a safe and responsible workplace action."},
+ {name:"The Meeting Room", title:"Decode the Emoji", type:"EMOJI PUZZLE",
+  question:"Decode the workplace idea: <strong>👥 + 🤝 + 🎯</strong><br><br>It means people working together, helping one another, and aiming for a shared result. What is the single word?",
+  clue:"It is an important skill in almost every workplace.",
+  answer:["teamwork"], hint:"It starts with TEAM and describes people cooperating.",
+  success:"Your team is working like a real team. The meeting room is unlocked!"},
+ {name:"The IT Department", title:"Spot the Error", type:"OBSERVATION",
+  question:"An access code is written as <strong>MOND0AY</strong>. One character is wrong: the code should spell the day of the week. Which character must be replaced? Enter the incorrect character.",
+  clue:"Look closely: one character looks like a letter but is actually a number.",
+  answer:["0","zero","number 0","the number 0"], hint:"It is the round digit between 9 and 1—not the letter O.",
+  success:"Sharp eyes! You spotted the error before it caused a problem."},
+ {name:"The Executive Office", title:"The Final Door", type:"FINAL RIDDLE",
+  question:"I show dates but never speak. I help you remember deadlines, meetings, and appointments. What am I?",
+  clue:"It can hang on a wall or appear in your computer or phone.",
+  answer:["calendar"], hint:"It shows days, weeks, and months.",
+  success:"You solved every room and escaped the office!"}
+];
+let current=0;
+let solved=new Set();
+let shownHints=new Set();
+const list=document.getElementById("roomList");
+const game=document.getElementById("game");
+function renderList(){
+ list.innerHTML="";
+ rooms.forEach((r,i)=>{
+  const b=document.createElement("button");
+  b.className="roomlink"+(i===current?" active":"")+(solved.has(i)?" done":"");
+  b.disabled=i>0&&!solved.has(i-1)&&!solved.has(i);
+  b.innerHTML=`<span class="num">${solved.has(i)?"✓":i+1}</span><span>${r.name}</span>`;
+  b.onclick=()=>{if(i===0||solved.has(i-1)||solved.has(i)){current=i;render()}};
+  list.appendChild(b);
+ });
+ document.getElementById("roomCount").textContent=solved.size===rooms.length?"All rooms solved!":`Room ${current+1} of ${rooms.length}`;
+ document.getElementById("score").textContent=`Solved: ${solved.size} / ${rooms.length}`;
+ document.getElementById("bar").style.width=(solved.size/rooms.length*100)+"%";
+}
+function render(){
+ renderList();
+ if(solved.size===rooms.length){
+  game.innerHTML=`<div class="finish"><div class="big">🏆🔓</div><div class="kicker">MISSION COMPLETE</div><h2>You Escaped the Office!</h2><p class="question">Your team solved all 8 puzzles using logic, communication, observation, and teamwork.</p><p><strong>Give your team a round of applause!</strong></p><button class="primary" onclick="resetGame()">Play again</button></div>`;
+  return;
+ }
+ const r=rooms[current];
+ game.innerHTML=`<div class="kicker">${r.type} • ROOM ${current+1}</div>
+ <h2>${r.title}</h2><div class="question">${r.question}</div>
+ <div class="clue"><strong>📎 Clue:</strong> ${r.clue}</div>
+ <label for="answer"><strong>Your answer</strong></label>
+ <input id="answer" type="text" placeholder="Type your answer here..." autocomplete="off">
+ <div class="actions"><button class="primary" id="submit">Unlock room</button><button class="secondary" id="hintBtn">💡 Show hint</button></div>
+ <div class="hint" id="hint">${r.hint}</div><div id="feedback" role="status" aria-live="polite"></div>`;
+ document.getElementById("submit").onclick=checkAnswer;
+ document.getElementById("answer").addEventListener("keydown",e=>{if(e.key==="Enter")checkAnswer()});
+ document.getElementById("hintBtn").onclick=()=>{
+  const h=document.getElementById("hint");h.style.display=h.style.display==="block"?"none":"block";
+  document.getElementById("hintBtn").textContent=h.style.display==="block"?"Hide hint":"💡 Show hint";
+ };
+}
+function normalize(s){return s.toLowerCase().trim().replace(/[.!?,]/g,"").replace(/\s+/g," ")}
+function checkAnswer(){
+ const r=rooms[current], val=normalize(document.getElementById("answer").value);
+ const fb=document.getElementById("feedback");
+ if(!val){fb.className="bad";fb.textContent="Enter an answer before unlocking the room.";return}
+ if(r.answer.some(a=>normalize(a)===val)){
+  solved.add(current);fb.className="good";fb.textContent="✅ "+r.success;
+  renderList();
+  const btn=document.getElementById("submit");btn.textContent=current===rooms.length-1?"Complete mission":"Continue to next room";btn.onclick=()=>{
+   if(solved.size===rooms.length){render();return}
+   current=Math.min(current+1,rooms.length-1);render();
+  };
+ }else{
+  fb.className="bad";fb.textContent="🔒 Not quite. Discuss the clue with your team and try again.";
+ }
+}
+function resetGame(){
+ current=0;solved=new Set();shownHints=new Set();render();
+}
+render();
+</script>
+</body>
+</html>
